@@ -13,43 +13,67 @@
 *  Shiichan: http://shii.org/shiichan
 *  Kareha: http://wakaba.c3.cx/
 */
-#define crypt notmycrypt
+#define crypt __crypt
 #include <unistd.h>
-#undef crypt
 #include <strings.h>
 #include <string.h>
 #include <stdio.h>
 #include <fcntl.h>
-#include <mach/mach_time.h>
 #include <stdlib.h>
 #include <signal.h>
-
-#ifdef SHIICHAN4K
-#include "sha1.c"
-#include "base64.c"
-#define OUTPUT_LEN 12
-#elif WAKABARC4
-#include "rc4.c"
-#include "base64.c"
-#define OUTPUT_LEN 9
-#else
-#include "crypt.c"
-#define OUTPUT_LEN 11
-#endif
+#undef crypt
 
 #ifdef __GNUC__
 #define likely(x) __builtin_expect(x,1)
 #define unlikely(x) __builtin_expect(x,0)
+#define bswap32(x) __builtin_bswap32(x)
+#define always_inline __attribute__((always_inline))
+#define inline always_inline
 #else
 #define likely(x) (x)
 #define unlikely(x) (x)
+#define bswap32(x) htonl(x)
+#define always_inline inline
+#endif
+
+#ifdef __BIG_ENDIAN__
+#undef htonl
+#undef ntohl
+#define htonl(x) (x)
+#define ntohl(x) (x)
+#elif defined(LITTLE_ENDIAN)
+#undef htonl
+#undef ntohl
+#define htonl(x) bswap32(x)
+#define ntohl(x) bswap32(x)
+#else
+#include <arpa/inet.h>
+#endif
+
+#ifdef SHIICHAN4K
+#include "sha1.c"
+#include "base64.c"
+#define OUTPUT_LEN 11
+#elif WAKABARC4
+#include "rc4.c"
+#include "base64.c"
+#define OUTPUT_LEN 8
+#else
+#include "crypt.c"
+#define OUTPUT_LEN 10
+#undef MAX_TRIPCODE_LEN
+#endif
+
+#ifndef MAX_TRIPCODE_LEN
+#define MAX_TRIPCODE_LEN 8
 #endif
 
 #ifdef CASE_SENSITIVE
-#define ceq(a,b) ((a)==(b))
+#define ceq(a,b) unlikely((a)==(b))
 #else
-static inline unsigned char sc(unsigned char x) {return ((x >= 'A') && (x <= 'Z')) ? (x+('a'-'A')) : ((x >= 'a') && (x <= 'z')) ? (x-('a'-'A')) : x;} // switch case
-static inline unsigned char ceq(unsigned char a, unsigned char b) {unsigned char r = unlikely(a==b); return r ? r : a == sc(b);}
+static inline unsigned char switchcase(unsigned char x) {return ((x >= 'A') && (x <= 'Z')) ? (x+('a'-'A')) : ((x >= 'a') && (x <= 'z')) ? (x-('a'-'A')) : x;}
+static inline unsigned char _ceq(unsigned char a, unsigned char b) {return (a == b) ? : a == switchcase(b);}
+#define ceq(a, b) (unlikely(_ceq(a,b)))
 #endif
 
 static inline unsigned char strcontainsstr(const unsigned char * big,const char * small, unsigned char len, unsigned char slen)
@@ -73,7 +97,7 @@ more_tries:
 
 #ifndef SHIICHAN4K
 #ifndef WAKABARC4
-static unsigned char
+static inline unsigned char
 tripsaltclean(unsigned char i)
 {
     if ((i < '.') || (i > 'z'))
@@ -85,130 +109,153 @@ tripsaltclean(unsigned char i)
     return i;
 }
 
-static unsigned char *
+static inline unsigned char *
 tripcode_2ch(unsigned char *input, unsigned int ilen)
 {
-    char            salt[2];
+    char salt[2];
 	
-    if ((ilen >= 2)) {
+    if (ilen >= 2) {
         salt[0] = tripsaltclean(input[1]);
-        salt[1] = (ilen > 2)? tripsaltclean(input[2]):'H';
+        salt[1] = (ilen > 2)?tripsaltclean(input[2]):'H';
     } else {salt[0] = 'H'; salt[1] = '.';}
 	
     return (unsigned char*)crypt((char*)input, salt) + 3;
 }
 #else
-static void
+static inline void
 tripcode_wakaba(unsigned char *input,unsigned char *buffer, unsigned int ilen)
 {
 	unsigned char hash[6];
     rc4(input,hash,ilen);
-    b64rc4(hash,buffer);
+    base64(hash,buffer,6);
 }
 #endif
 #else
-static void
+static inline void
 tripcode_shiichan(unsigned char *input,unsigned char *buffer, unsigned int ilen)
 {
-    unsigned long hash[5];
+    unsigned int hash[5];
     sha1(input,ilen,hash);
-    b64sha((unsigned char*)hash,buffer);
+    base64((const unsigned char *)hash,buffer,9);
 }
 #endif
 
 static const unsigned char tripcode_inputs[94] = " \"$%&'()*+,-.!/0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
 
-static unsigned int htmlspecialchars(unsigned char *tripindexes, unsigned char *htmled, unsigned char ilen)
+static inline int htmlspecialchars(unsigned char *trip, unsigned char *htmled, unsigned char ilen)
 {
-    unsigned char i=0; int i2=0;
+    int i=0,  i2=0;
     for (;i < ilen; i++) {
-        unsigned char c = tripcode_inputs[tripindexes[i]];
+        unsigned char c = trip[i];
         switch (c) {
 			case '<':
-				htmled[i2++] = '&'; 
-				htmled[i2++] = 'l'; 
-				htmled[i2++] = 't'; 
-				htmled[i2++] = ';';
+				htmled[i2] = '&'; 
+				htmled[i2+1] = 'l'; 
+				htmled[i2+2] = 't'; 
+				htmled[i2+3] = ';';
+				i2+=4;
 				break;
 			case '>':
-				htmled[i2++] = '&'; 
-				htmled[i2++] = 'g'; 
-				htmled[i2++] = 't'; 
-				htmled[i2++] = ';';
+				htmled[i2] = '&'; 
+				htmled[i2+1] = 'g'; 
+				htmled[i2+2] = 't'; 
+				htmled[i2+3] = ';';
+				i2+=4;
 				break;
 			case '&':
-				htmled[i2++] = '&'; 
-				htmled[i2++] = 'a'; 
-				htmled[i2++] = 'm'; 
-				htmled[i2++] = 'p'; 
-				htmled[i2++] = ';';
+				htmled[i2] = '&'; 
+				htmled[i2+1] = 'a'; 
+				htmled[i2+2] = 'm'; 
+				htmled[i2+3] = 'p'; 
+				htmled[i2+4] = ';';
+				i2+=5;
 				break;
 			case '"':
-				htmled[i2++] = '&'; 
-				htmled[i2++] = 'q'; 
-				htmled[i2++] = 'u'; 
-				htmled[i2++] = 'o'; 
-				htmled[i2++] = 't'; 
-				htmled[i2++] = ';';
+				htmled[i2] = '&'; 
+				htmled[i2+1] = 'q'; 
+				htmled[i2+2] = 'u'; 
+				htmled[i2+3] = 'o'; 
+				htmled[i2+4] = 't'; 
+				htmled[i2+5] = ';';
+				i2+=6;
 				break;
 			case '\'':
-				htmled[i2++] = '&'; 
-				htmled[i2++] = '#'; 
-				htmled[i2++] = '0'; 
-				htmled[i2++] = '3'; 
-				htmled[i2++] = '9'; 
-				htmled[i2++] = ';';
+				htmled[i2] = '&'; 
+				htmled[i2+1] = '#'; 
+				htmled[i2+2] = '0'; 
+				htmled[i2+3] = '3'; 
+				htmled[i2+4] = '9'; 
+				htmled[i2+5] = ';';
+				i2+=6;
 				break;
-			default: htmled[i2++] = c;
+			default: htmled[i2] = c; i2++;
         }
 	}
     return i2;
 }
 
-static void fill_count(unsigned char *count, unsigned len, unsigned step) {
+//iteration-independent version of next_trip
+//much slower but useful for parallelizing maybe
+/*
+static inline void fill_count_for_trip(unsigned char *count, unsigned len, unsigned step) {
 	int i = len;
 	while (i-- >= 0) {
 		count[i] = step % 94;
 		step /= 94;
 	}
 }
+ 
+ 
+static inline unsigned trips_per_len(unsigned len) {
+ // trips = 94**len
+ unsigned mul=1;
+ while (len--) mul *= 94;
+ return mul;
+} 
+*/
 
-static unsigned trips_per_len(unsigned len) {
-	// trips = 94**len
-	unsigned mul=1;
-	while (len--) mul *= 94;
-	return mul;
+static inline int next_trip(unsigned char *count, unsigned len) {
+    int i = len;
+    
+    while (i-- > 0) {
+        if (count[i] == sizeof(tripcode_inputs)-1) {
+            count[i] = 0; //carry
+        } else {
+            count[i]++;
+            return 1;
+        }
+    }
+    return 0; //ran out of trips
 }
 
-static void
+static inline void
 testeverytripoflength(unsigned char len,const char * search, unsigned char searchlen, unsigned char *workspace,const char * salt, unsigned int saltlen)
 {
-	unsigned int trips = trips_per_len(len), i;
-	
-    for (i = 0; i < trips; i++) {
-		unsigned char count[8];
-		unsigned char len2;
-		fill_count(count, len, i);
+    unsigned char count[MAX_TRIPCODE_LEN] = {0};
+
+    do {        
+		unsigned char len2, i;
+        unsigned char prehtml[MAX_TRIPCODE_LEN+1];
+        for (i=0; i < len; i++) prehtml[i] = tripcode_inputs[count[i]];
+        
 #ifdef SHIICHAN4K
         unsigned char buffer[12];
-        len2 = htmlspecialchars(count, workspace, len);
+        len2 = htmlspecialchars(prehtml, workspace, len);
         memcpy(workspace+len2,salt,saltlen);
         tripcode_shiichan(workspace, buffer, len2+saltlen);
 #elif WAKABARC4
         unsigned char buffer[10];
-        len2 = htmlspecialchars(count, workspace+1, len);
+        len2 = htmlspecialchars(prehtml, workspace+1, len);
         memcpy(workspace+1+len2,salt,saltlen);
         tripcode_wakaba(workspace, buffer, 1+len2+saltlen);
 #else
         unsigned char *buffer;
-        len2 = htmlspecialchars(count, workspace,len);
+        len2 = htmlspecialchars(prehtml, workspace,len);
         workspace[len2]='\0';
         buffer = tripcode_2ch(workspace, len2);
 #endif
-        if (strcontainsstr(buffer, search, OUTPUT_LEN, searchlen)) {
-            unsigned char tripin[9],j;
-            for (j=0; j < len; j++) tripin[j] = tripcode_inputs[count[j]];
-			buffer[OUTPUT_LEN-1] = tripin[len]='\0';
+        if (unlikely(strcontainsstr(buffer, search, OUTPUT_LEN, searchlen))) {
+			buffer[OUTPUT_LEN] = prehtml[len]='\0';
             printf(
 #if 1
 #if defined(SHIICHAN4K) || defined(WAKABARC4)
@@ -219,9 +266,9 @@ testeverytripoflength(unsigned char len,const char * search, unsigned char searc
 #else
 				   ""
 #endif
-				   , tripin, buffer);
+				   , prehtml, buffer);
         }
-    }// while (!advance(count, len));
+    } while (next_trip(count, len));
 }
 
 static void terminatehandle(int unused)
@@ -233,14 +280,15 @@ static void terminatehandle(int unused)
 int
 main(int argc, const char *argv[])
 {
-    int i; int searchlen;const char *salt; unsigned saltlen;
+    unsigned int i, searchlen;const char *salt; unsigned saltlen;
 	signal(SIGPIPE,terminatehandle);
 	signal(SIGTERM,terminatehandle);
 	signal(SIGINT,terminatehandle);
-//	argc=3; argv=(const char*[]){"","lain","/Library/WebServer/Documents/shiichan/salt.cgi"};
 	setlinebuf(stdout);
+
+#define HTMLED_TRIPCODE_LEN 8*MAX_TRIPCODE_LEN
 #ifdef SHIICHAN4K
-#define shaworklen (8*6+448)
+#define shaworklen (HTMLED_TRIPCODE_LEN+448)
 	if (argc<3) return 1;
 	unsigned char salta[448]; salt=(char*)salta;
 	unsigned char work[shaworklen + (64 - (shaworklen%64))]; saltlen=448;
@@ -248,17 +296,16 @@ main(int argc, const char *argv[])
 #elif WAKABARC4
 	if (argc<3) return 1;
 	saltlen = strlen(argv[2]);
-	unsigned char work[1+8*6+saltlen];
+	unsigned char work[1+HTMLED_TRIPCODE_LEN+saltlen];
     work[0] = 't';
 	salt = argv[2];
 #else
 	if (argc<2) return 1;
-	unsigned char work[8*6];
+	unsigned char work[HTMLED_TRIPCODE_LEN];
     init_des(); salt=NULL; saltlen = 0;
 #endif
 	searchlen = strlen(argv[1]);
-		//double d = the_time();
-    for (i = 1; i <= 8; i++)
+    for (i = 1; i <= MAX_TRIPCODE_LEN; i++)
         testeverytripoflength(i, argv[1], searchlen, work, salt, saltlen);
     return 0;
 }

@@ -1,10 +1,8 @@
 /*
  *  sha1.c
- *  pass-attack
  *
  *  Created by Alexander Strange on 10/23/04.
- *  Copyright 2004 __MyCompanyName__. All rights reserved.
- *
+ *  WTFPL goes here
  */
 
 #include <stdlib.h>
@@ -62,7 +60,7 @@
  */
 
 #define lr(a,b) (((a)<<b)|(((a))>>(32-b)))
-static void SHA1_one(unsigned char *input, unsigned long *h0, unsigned long *h1, unsigned long *h2, unsigned long *h3, unsigned long *h4)
+static void SHA1_one(unsigned char *input, unsigned int *h0, unsigned int *h1, unsigned int *h2, unsigned int *h3, unsigned int *h4)
 {
     unsigned int a,b,c,d,e,i;
     unsigned int *blockTmp = (unsigned int*)input;
@@ -92,17 +90,17 @@ static void SHA1_one(unsigned char *input, unsigned long *h0, unsigned long *h1,
 
 static void array_swap(unsigned char *a_, unsigned int size)
 {
-	unsigned long *a = (unsigned long *)a_;
+	unsigned int *a = (unsigned int *)a_;
 	if (htonl(1) == 1) return;
 	while (size--) {*a = htonl(*a); a++;}
 }
 
 /* It's assumed that input is allocated a multiple of 64 bytes and we can overwrite it */
-static void sha1(unsigned char *input, unsigned int ilen, unsigned long *buffer)
+static void sha1(unsigned char *input, unsigned int ilen, unsigned int *buffer)
 {
     unsigned char *inputend = &input[ilen];
-	unsigned long ilenrnd = 64-(ilen%64);
-	unsigned long h0,h1,h2,h3,h4,blocki,shats = ilen + ilenrnd;
+	unsigned int ilenrnd = 64-(ilen%64);
+	unsigned int h0,h1,h2,h3,h4,blocki,shats = ilen + ilenrnd;
     bzero(inputend,ilenrnd);
     h0 = 0x67452301;
     h1 = 0xEFCDAB89;
@@ -111,7 +109,7 @@ static void sha1(unsigned char *input, unsigned int ilen, unsigned long *buffer)
     h4 = 0xC3D2E1F0;
     *inputend = 1<<7;
 //    ((unsigned long long*)input)[(ilen+(56-(ilen%64)))/8] = ilen*8;
-	((unsigned long*)input)[(shats - 4)/4] = htonl(ilen*8);
+	((unsigned int*)input)[(shats - 4)/4] = htonl(ilen*8);
 	// the above is "append length of message (before pre-processing), in bits as 64-bit big-endian integer to message"
     for (blocki = 0; blocki < shats; blocki += 64) {array_swap(&input[blocki],16); SHA1_one(&input[blocki],&h0,&h1,&h2,&h3,&h4); array_swap(&input[blocki],16);}
 	buffer[0] = htonl(h0); buffer[1] = htonl(h1); buffer[2] = htonl(h2); buffer[3] = htonl(h3); buffer[4] = htonl(h4);
