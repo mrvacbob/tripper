@@ -42,9 +42,13 @@
 #ifdef __GNUC__
 # define likely(x)   __builtin_expect(x,1)
 # define unlikely(x) __builtin_expect(x,0)
+# define always_inline __attribute__((always_inline))
+# undef htonl
+# define htonl(x) __builtin_bswap32(x)
 #else
 # define likely(x)   (x)
 # define unlikely(x) (x)
+# define always_inline inline
 #endif
 
 #ifdef SHIICHAN4K
@@ -132,7 +136,7 @@ static inline void
 tripcode_shiichan(unsigned char *input,unsigned char *buffer, unsigned int ilen)
 {
     unsigned int hash[5];
-    sha1(input,ilen,hash);
+    sha1(input,hash,ilen);
     base64((const unsigned char *)hash,buffer,9);
 }
 #endif
@@ -223,7 +227,7 @@ static inline int next_trip(unsigned char *count, unsigned len) {
     return 0; //ran out of trips
 }
 
-static inline void
+static always_inline void
 testeverytripoflength(unsigned char len,const char * search, unsigned char searchlen, unsigned char *workspace,const char * salt, unsigned int saltlen)
 {
     unsigned char count[MAX_TRIPCODE_LEN] = {0};
