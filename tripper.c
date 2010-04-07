@@ -51,10 +51,10 @@
 # define always_inline inline
 #endif
 
-#ifdef SHIICHAN4K
+#ifdef SHIICHAN
 # include "hash.c"
 # define OUTPUT_LEN 11
-#elif WAKABARC4
+#elif WAKABA
 # include "hash.c"
 # define OUTPUT_LEN 8
 #else
@@ -96,8 +96,8 @@ more_tries:
 	return 0;
 }
 
-#ifndef SHIICHAN4K
-#ifndef WAKABARC4
+#ifndef SHIICHAN
+#ifndef WAKABA
 static inline unsigned char
 tripsaltclean(unsigned char i)
 {
@@ -237,12 +237,12 @@ testeverytripoflength(unsigned char len,const char * search, unsigned char searc
         unsigned char prehtml[MAX_TRIPCODE_LEN+1];
         for (i=0; i < len; i++) prehtml[i] = tripcode_inputs[count[i]];
         
-#ifdef SHIICHAN4K
+#ifdef SHIICHAN
         unsigned char buffer[12];
         len2 = htmlspecialchars(prehtml, workspace, len);
         memcpy(workspace+len2,salt,saltlen);
         tripcode_shiichan(workspace, buffer, len2+saltlen);
-#elif WAKABARC4
+#elif WAKABA
         unsigned char buffer[10];
         len2 = htmlspecialchars(prehtml, workspace+1, len);
         memcpy(workspace+1+len2,salt,saltlen);
@@ -256,7 +256,7 @@ testeverytripoflength(unsigned char len,const char * search, unsigned char searc
         if (unlikely(strcontainsstr(buffer, search, OUTPUT_LEN, searchlen))) {
 			buffer[OUTPUT_LEN] = prehtml[len]='\0';
             printf(
-#if defined(SHIICHAN4K) || defined(WAKABARC4)
+#if defined(SHIICHAN) || defined(WAKABA)
 				   "##%s !%s\n"
 #else
 				   "#%s !%s\n"
@@ -281,13 +281,13 @@ main(int argc, const char *argv[])
 	signal(SIGINT,terminatehandle);
 	setlinebuf(stdout);
 
-#ifdef SHIICHAN4K
+#ifdef SHIICHAN
 # define shaworklen (HTMLED_TRIPCODE_LEN+448)
 	if (argc<3) return 1;
 	unsigned char salta[448]; salt=(char*)salta;
 	unsigned char work[shaworklen + (64 - (shaworklen%64))]; saltlen=448;
     int f = open(argv[2],O_RDONLY); if (f==-1) {perror("salt read failed"); exit(1);} read(f,salta,448); close(f);
-#elif WAKABARC4
+#elif WAKABA
 	if (argc<3) return 1;
 	saltlen = strlen(argv[2]);
 	unsigned char work[1+HTMLED_TRIPCODE_LEN+saltlen];
