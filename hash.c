@@ -14,8 +14,17 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <stdlib.h>
-#include <string.h>
+/*
+ * RC4, SHA1, Base64 implementations
+ *
+ * RC4    - from Wakaba (http://wakaba.c3.cx/s/web/wakaba_kareha) converted from Perl
+ * SHA1   - http://en.wikipedia.org/wiki/SHA-1#SHA-1_pseudocode
+ * Base64 - http://tools.ietf.org/html/rfc4648
+ *
+ * Notes:
+ *  Anyone who writes SHA1 with an unrolled loop (spotted in OpenSSL, darcs, etc.)
+ *  is in a state of sin.
+ */
 
 static const unsigned char b64[64] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
