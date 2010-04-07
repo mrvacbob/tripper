@@ -29,6 +29,7 @@
 *  Shiichan: http://shii.org/shiichan
 *  Kareha: http://wakaba.c3.cx/
 */
+
 #define crypt __crypt
 #include <unistd.h>
 #include <strings.h>
@@ -67,12 +68,10 @@
 #endif
 
 #ifdef SHIICHAN4K
-#include "sha1.c"
-#include "base64.c"
+#include "hash.c"
 #define OUTPUT_LEN 11
 #elif WAKABARC4
-#include "rc4.c"
-#include "base64.c"
+#include "hash.c"
 #define OUTPUT_LEN 8
 #else
 #include "crypt.c"

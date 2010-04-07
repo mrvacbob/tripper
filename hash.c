@@ -1,4 +1,67 @@
 /*
+ Copyright (c) 2004-2010 Alexander Strange <astrange@ithinksw.com>
+
+ Permission to use, copy, modify, and/or distribute this software for any
+ purpose with or without fee is hereby granted, provided that the above
+ copyright notice and this permission notice appear in all copies.
+ 
+ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+*/
+
+static const unsigned char b64[64] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+static inline void base64(const unsigned char *hash, unsigned char *buffer, int length)
+{
+    int i=0;
+    
+    for (; i < (length/3); i++) {
+        int i3 = i*3, i4 = i*4;
+        unsigned bits = hash[i3]<<16 | hash[i3+1]<<8 | hash[i3+2];
+        
+        buffer[i4+0] = b64[(bits>>18) % 64];
+        buffer[i4+1] = b64[(bits>>12) % 64];
+        buffer[i4+2] = b64[(bits>>6) % 64];
+        buffer[i4+3] = b64[bits % 64];
+    }
+}
+
+static inline void swap(unsigned char *a, unsigned char *b)
+{
+    unsigned char tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
+
+static void rc4(const unsigned char * input, unsigned char * output, unsigned int ilen)
+{
+	unsigned char S[256];
+	unsigned short i=0;
+	unsigned char j=0,i2=0,i3;
+	for (;i<=255; i++) {S[i]=i;}
+	for (i=0;i<=255; i++) { 
+        j = (j + S[i] + input[i2++]);
+        swap(&S[i], &S[j]);
+		if (i2 == ilen) i2 = 0;
+    }
+    i=i2=i3=j=0;
+	for (;i<=255;i++) {
+		j += S[++i2];
+        swap(&S[i2], &S[j]);
+    }
+    for (; i3 < 6; i3++) {
+        j += S[++i2]; 
+        output[i3] = S[(S[i2] + S[j])%256]; 
+        swap(&S[i2], &S[j]);
+    }
+}
+
+/*
  *  sha1.c
  *
  *  Created by Alexander Strange on 10/23/04.
