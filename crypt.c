@@ -64,14 +64,7 @@
 #include <pwd.h>
 #include <string.h>
 
-
-/* We can't always assume gcc */
-#if	defined(__GNUC__) && !defined(lint)
 #define INLINE inline
-#else
-#define INLINE
-#endif
-
 
 static const u_char	IP[64] = {
 	58, 50, 42, 34, 26, 18, 10,  2, 60, 52, 44, 36, 28, 20, 12,  4,
@@ -162,23 +155,13 @@ static const u_char	pbox[32] = {
 	 2,  8, 24, 14, 32, 27,  3,  9, 19, 13, 30,  6, 22, 11,  4, 25
 };
 
-static u_int32_t	bits32[32] =
-{
-	0x80000000, 0x40000000, 0x20000000, 0x10000000,
-	0x08000000, 0x04000000, 0x02000000, 0x01000000,
-	0x00800000, 0x00400000, 0x00200000, 0x00100000,
-	0x00080000, 0x00040000, 0x00020000, 0x00010000,
-	0x00008000, 0x00004000, 0x00002000, 0x00001000,
-	0x00000800, 0x00000400, 0x00000200, 0x00000100,
-	0x00000080, 0x00000040, 0x00000020, 0x00000010,
-	0x00000008, 0x00000004, 0x00000002, 0x00000001
-};
-
-static const u_char	bits8[8] = { 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01 };
+static u_int32_t bits32(int i) {return 1 << (31 - i);}
+static u_int32_t bits28(int i) {return 1 << (31 - (i+4));}
+static u_int32_t bits24(int i) {return 1 << (31 - (i+8));}
+static u_char bits8(int i) {return 1 << (7 - i);}
 
 static u_int32_t	saltbits;
 static u_int32_t	old_salt;
-static u_int32_t	*bits28, *bits24;
 static u_char		init_perm[64], final_perm[64];
 static u_int32_t	en_keysl[16], en_keysr[16];
 static u_int32_t	de_keysl[16], de_keysr[16];
@@ -223,7 +206,6 @@ init_des(void)
 	old_rawkey0 = old_rawkey1 = 0L;
 	saltbits = 0L;
 	old_salt = 0L;
-	bits24 = (bits28 = bits32 + 4) + 4;
 
 	/*
 	 * Invert the S-boxes, reordering the input bits.
@@ -282,15 +264,15 @@ init_des(void)
 			*(fr = &fp_maskr[k][i]) = 0L;
 			for (j = 0; j < 8; j++) {
 				inbit = 8 * k + j;
-				if (i & bits8[j]) {
+				if (i & bits8(j)) {
 					if ((obit = init_perm[inbit]) < 32)
-						*il |= bits32[obit];
+						*il |= bits32(obit);
 					else
-						*ir |= bits32[obit-32];
+						*ir |= bits32(obit-32);
 					if ((obit = final_perm[inbit]) < 32)
-						*fl |= bits32[obit];
+						*fl |= bits32(obit);
 					else
-						*fr |= bits32[obit - 32];
+						*fr |= bits32(obit - 32);
 				}
 			}
 		}
@@ -299,26 +281,26 @@ init_des(void)
 			*(ir = &key_perm_maskr[k][i]) = 0L;
 			for (j = 0; j < 7; j++) {
 				inbit = 8 * k + j;
-				if (i & bits8[j + 1]) {
+				if (i & bits8(j + 1)) {
 					if ((obit = inv_key_perm[inbit]) == 255)
 						continue;
 					if (obit < 28)
-						*il |= bits28[obit];
+						*il |= bits28(obit);
 					else
-						*ir |= bits28[obit - 28];
+						*ir |= bits28(obit - 28);
 				}
 			}
 			*(il = &comp_maskl[k][i]) = 0L;
 			*(ir = &comp_maskr[k][i]) = 0L;
 			for (j = 0; j < 7; j++) {
 				inbit = 7 * k + j;
-				if (i & bits8[j + 1]) {
+				if (i & bits8(j + 1)) {
 					if ((obit=inv_comp_perm[inbit]) == 255)
 						continue;
 					if (obit < 24)
-						*il |= bits24[obit];
+						*il |= bits24(obit);
 					else
-						*ir |= bits24[obit - 24];
+						*ir |= bits24(obit - 24);
 				}
 			}
 		}
@@ -335,8 +317,8 @@ init_des(void)
 		for (i = 0; i < 256; i++) {
 			*(p = &psbox[b][i]) = 0L;
 			for (j = 0; j < 8; j++) {
-				if (i & bits8[j])
-					*p |= bits32[un_pbox[8 * b + j]];
+				if (i & bits8(j))
+					*p |= bits32(un_pbox[8 * b + j]);
 			}
 		}
 
@@ -448,7 +430,7 @@ do_des(	u_int32_t l_in, u_int32_t r_in, u_int32_t *l_out, u_int32_t *r_out, int 
 	 *	l_in, r_in, l_out, and r_out are in pseudo-"big-endian" format.
 	 */
 	u_int32_t	l, r, *kl, *kr, *kl1, *kr1;
-	u_int32_t	f, r48l, r48r;
+	u_int32_t	f=0, r48l, r48r;
 	int		round;
 
 		/*
