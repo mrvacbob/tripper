@@ -1,7 +1,7 @@
 #!/bin/sh
 
-CC=gcc-4.2
-CFLAGS="-Os -march=pentium -mtune=generic -std=gnu99"
+CC=gcc
+CFLAGS="-O3 -g -std=gnu99"
 
 $CC $CFLAGS -o tripper2ch tripper.c
 $CC $CFLAGS -DSHIICHAN4K -o trippershii tripper.c
