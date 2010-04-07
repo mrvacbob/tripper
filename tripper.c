@@ -1,94 +1,74 @@
 /*
- Copyright (c) 2004-2010 Alexander Strange <astrange@ithinksw.com>
+ * Copyright (c) 2004-2010 Alexander Strange <astrange@ithinksw.com>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 
- Permission to use, copy, modify, and/or distribute this software for any
- purpose with or without fee is hereby granted, provided that the above
- copyright notice and this permission notice appear in all copies.
- 
- THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-*/
-
-/* Brute-force tripcode finder, for 2channel boards.
-* Will work with restrictions on Wakaba/Wakaba-ZERO/Kareha/Shiichan/Futallaby/Futaba/Electron/Etc.
-* Tripcode output containing <>"'!#,& may not work.
-*
-* To build: build.sh
-*  
-* Output:
-* #blah !XXXXXXXXXX
-* Append #blah to your name when posting to get the printed tripcode.
-* Todo:
-*  check higher-ascii/SJIS tripcode inputs
-*  $Id$ Alexander Strange, astrange@ithinksw.com, http://astrange.ithinksw.net/
-*  Shiichan: http://shii.org/shiichan
-*  Kareha: http://wakaba.c3.cx/
-*/
+/* 
+ * Brute-force tripcode finder, for 2channel boards.
+ * Will work with restrictions on Wakaba/Wakaba-ZERO/Kareha/Shiichan/Futallaby/Futaba/Electron/Etc.
+ * Tripcode output containing <>"'!#,& may not work on some (incorrect) boards.
+ *
+ * To build: ./build.sh
+ *  
+ * Output:
+ *  #blah !XXXXXXXXXX
+ *  Append #blah to your name when posting to get the printed tripcode.
+ *
+ * Todo:
+ *  check higher-ascii/SJIS tripcode inputs
+ */
 
 #define crypt __crypt
-#include <unistd.h>
-#include <strings.h>
-#include <string.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <stdlib.h>
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #undef crypt
 
 #ifdef __GNUC__
-#define likely(x) __builtin_expect(x,1)
-#define unlikely(x) __builtin_expect(x,0)
-#define bswap32(x) __builtin_bswap32(x)
-#define always_inline __attribute__((always_inline))
-#define inline always_inline
+# define likely(x)   __builtin_expect(x,1)
+# define unlikely(x) __builtin_expect(x,0)
 #else
-#define likely(x) (x)
-#define unlikely(x) (x)
-#define bswap32(x) htonl(x)
-#define always_inline inline
-#endif
-
-#ifdef __BIG_ENDIAN__
-#undef htonl
-#undef ntohl
-#define htonl(x) (x)
-#define ntohl(x) (x)
-#elif defined(LITTLE_ENDIAN)
-#undef htonl
-#undef ntohl
-#define htonl(x) bswap32(x)
-#define ntohl(x) bswap32(x)
-#else
-#include <arpa/inet.h>
+# define likely(x)   (x)
+# define unlikely(x) (x)
 #endif
 
 #ifdef SHIICHAN4K
-#include "hash.c"
-#define OUTPUT_LEN 11
+# include "hash.c"
+# define OUTPUT_LEN 11
 #elif WAKABARC4
-#include "hash.c"
-#define OUTPUT_LEN 8
+# include "hash.c"
+# define OUTPUT_LEN 8
 #else
-#include "crypt.c"
-#define OUTPUT_LEN 10
-#undef MAX_TRIPCODE_LEN
+# include "crypt.c"
+# define OUTPUT_LEN 10
+# undef MAX_TRIPCODE_LEN
 #endif
 
 #ifndef MAX_TRIPCODE_LEN
-#define MAX_TRIPCODE_LEN 8
+# define MAX_TRIPCODE_LEN 8
 #endif
 
+#define HTMLED_TRIPCODE_LEN (8*MAX_TRIPCODE_LEN)
+
 #ifdef CASE_SENSITIVE
-#define ceq(a,b) unlikely((a)==(b))
+# define ceq(a,b) unlikely((a)==(b))
 #else
 static inline unsigned char switchcase(unsigned char x) {return ((x >= 'A') && (x <= 'Z')) ? (x+('a'-'A')) : ((x >= 'a') && (x <= 'z')) ? (x-('a'-'A')) : x;}
 static inline unsigned char _ceq(unsigned char a, unsigned char b) {return (a == b) ? : a == switchcase(b);}
-#define ceq(a, b) (unlikely(_ceq(a,b)))
+# define ceq(a, b) (unlikely(_ceq(a,b)))
 #endif
 
 static inline unsigned char strcontainsstr(const unsigned char * big,const char * small, unsigned char len, unsigned char slen)
@@ -211,7 +191,6 @@ static inline int htmlspecialchars(unsigned char *trip, unsigned char *htmled, u
 
 //iteration-independent version of next_trip
 //much slower but useful for parallelizing maybe
-/*
 static inline void fill_count_for_trip(unsigned char *count, unsigned len, unsigned step) {
 	int i = len;
 	while (i-- >= 0) {
@@ -227,7 +206,6 @@ static inline unsigned trips_per_len(unsigned len) {
  while (len--) mul *= 94;
  return mul;
 } 
-*/
 
 static inline int next_trip(unsigned char *count, unsigned len) {
     int i = len;
@@ -272,14 +250,10 @@ testeverytripoflength(unsigned char len,const char * search, unsigned char searc
         if (unlikely(strcontainsstr(buffer, search, OUTPUT_LEN, searchlen))) {
 			buffer[OUTPUT_LEN] = prehtml[len]='\0';
             printf(
-#if 1
 #if defined(SHIICHAN4K) || defined(WAKABARC4)
 				   "##%s !%s\n"
 #else
 				   "#%s !%s\n"
-#endif
-#else
-				   ""
 #endif
 				   , prehtml, buffer);
         }
@@ -301,9 +275,8 @@ main(int argc, const char *argv[])
 	signal(SIGINT,terminatehandle);
 	setlinebuf(stdout);
 
-#define HTMLED_TRIPCODE_LEN 8*MAX_TRIPCODE_LEN
 #ifdef SHIICHAN4K
-#define shaworklen (HTMLED_TRIPCODE_LEN+448)
+# define shaworklen (HTMLED_TRIPCODE_LEN+448)
 	if (argc<3) return 1;
 	unsigned char salta[448]; salt=(char*)salta;
 	unsigned char work[shaworklen + (64 - (shaworklen%64))]; saltlen=448;
