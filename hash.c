@@ -26,9 +26,11 @@
  * Notes:
  *  Anyone who writes SHA1 with a fully unrolled loop (spotted in OpenSSL, darcs, etc.)
  *  is in a state of sin.
- *  gcc compiles rc4() very badly.
+ *  gcc compiles rc4() badly on x86 and seems to generate unnecessary sign extensions.
  *  The loop in sha1_block() should be partially unrolled to avoid constantly testing
  *  the range of 'i'.
+ *  The placement of setting 'temp' in sha1 is different from the reference and may
+ *  or may not be better.
  */
 
 static void base64(const uint8_t *hash, char *buffer, int length)
