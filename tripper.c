@@ -140,7 +140,7 @@ static void tripcode_shiichan(uint8_t *input, char *buffer, int length)
 {
     unsigned int hash[5];
     sha1(input,hash,length);
-    base64((const unsigned char *)hash,buffer,9);
+    base64((const uint8_t*)hash,buffer,9);
 }
 
 static const uint8_t tripcode_inputs[94] = " \"$%&'()*+,-.!/0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
