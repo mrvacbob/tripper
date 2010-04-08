@@ -147,7 +147,7 @@ static const uint8_t tripcode_inputs[94] = " \"$%&'()*+,-.!/0123456789:;<=>?@ABC
 
 static int htmlspecialchars(const char *trip, char *html, int length)
 {
-    int i, j;
+    int i, j = 0;
     for (i = 0; i < length; i++) {
         char c = trip[i];
         switch (c) {
@@ -260,7 +260,7 @@ test_every_trip_of_length(int length, const char *search, int searchlen,
         buffer = tripcode_2ch(workspace, html_len);
 #endif
         if (unlikely(strcontainsstr(buffer, search, OUTPUT_LEN, searchlen))) {
-            buffer[OUTPUT_LEN] = pre_html[length] = '0';
+            buffer[OUTPUT_LEN] = pre_html[length] = 0;
             printf(
 #if defined(SHIICHAN) || defined(WAKABA)
                    "##%s !%s\n"
