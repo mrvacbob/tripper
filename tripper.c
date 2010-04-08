@@ -77,7 +77,7 @@
 static uint8_t switchcase(uint8_t x)
 {
     return ((x >= 'A') && (x <= 'Z')) ? (x+('a'-'A')) :
-    ((x >= 'a') && (x <= 'z')) ? (x-('a'-'A')) : x;
+           ((x >= 'a') && (x <= 'z')) ? (x-('a'-'A')) : x;
 }
 static int ceq(uint8_t a, uint8_t b)
 {
@@ -96,7 +96,7 @@ redo_from_start:
 more_tries:
     j = 1;
     for (i++; i < len; i++,j++) {
-        if (slen >= j) return 1;
+        if (j >= slen) return 1;
         if (!ceq(big[i],small[j]))
             goto redo_from_start;
     }
@@ -291,7 +291,7 @@ int main(int argc, const char *argv[])
     signal(SIGINT,terminatehandle);
 
     const uint8_t *salt = NULL;
-    int saltlen, searchlen = 0;
+    int saltlen = 0, searchlen = 0;
     int i;
 
     searchlen = strlen(argv[1]);
