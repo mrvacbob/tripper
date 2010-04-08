@@ -26,8 +26,8 @@
  *  Append #blah to your name when posting to get the printed tripcode.
  *
  * Compiler required:
- * GCC 4.3 or above (Apple 4.2 or above) preferred.
- * Otherwise C99 is required and __BIG_ENDIAN__ or __LITTLE_ENDIAN__ must be defined.
+ *  GCC 4.3 or above (Apple 4.2 or above) preferred.
+ *  Otherwise C99 is required and __BIG_ENDIAN__ or __LITTLE_ENDIAN__ must be defined.
  *
  * Todo:
  *  check higher-ascii/SJIS tripcode inputs
