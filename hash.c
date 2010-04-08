@@ -33,12 +33,12 @@
 
 static void base64(const uint8_t *hash, char *buffer, int length)
 {
-	static const uint8_t a[64] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    
+    static const uint8_t a[64] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
     for (int i = 0; i < (length/3); i++) {
         int i3 = i*3, i4 = i*4;
         unsigned bits = hash[i3]<<16 | hash[i3+1]<<8 | hash[i3+2];
-        
+
         buffer[i4+0] = a[(bits>>18) % 64];
         buffer[i4+1] = a[(bits>>12) % 64];
         buffer[i4+2] = a[(bits>>6)  % 64];
@@ -49,27 +49,27 @@ static void base64(const uint8_t *hash, char *buffer, int length)
 #define swap(type, a, b) {type t = (a); (a) = (b); (b) = t;}
 static void rc4(const uint8_t *input, uint8_t output[6], int length)
 {
-	uint8_t S[256];
-	uint8_t j, k;
-	int i, i2;
-	
-	for (i = 0; i < 256; i++)
-		S[i] = i;
-		
-	for (i = 0; i < 256; i++) {
+    uint8_t S[256];
+    uint8_t j, k;
+    int i, i2;
+
+    for (i = 0; i < 256; i++)
+        S[i] = i;
+
+    for (i = 0; i < 256; i++) {
         j = j + S[i] + input[i2++];
         swap(uint8_t, S[i], S[j]);
-		if (i2 == length) i2 = 0;
+        if (i2 == length) i2 = 0;
     }
-	for (i = 0, i2 = 0, j = 0; i < 256; i++) {
-		j += S[i];
-		swap(uint8_t, S[i], S[j]);
+    for (i = 0, i2 = 0, j = 0; i < 256; i++) {
+        j += S[i];
+        swap(uint8_t, S[i], S[j]);
     }
     for (i = 0; i < 6; i++) {
         j += S[i];
-        
+
         k = S[i] + S[j];
-        output[i] = S[k]; 
+        output[i] = S[k];
         swap(uint8_t, S[i], S[j]);
     }
 }
@@ -88,30 +88,30 @@ static void sha1_block(void *input, unsigned h[5])
     e = h[4];
 
     for (i = 0; i < 80; i++) {
-    	unsigned temp;
-    	
+        unsigned temp;
+
         if (i < 16) {
-        	temp = block[i];
+            temp = block[i];
         } else {
-        	temp = block[(i-3)%16] ^ block[(i-8)%16] ^ block[(i-14)%16] ^ block[i%16];
-        	temp = rotate(temp, 1);
-        	block[i%16] = temp;
+            temp = block[(i-3)%16] ^ block[(i-8)%16] ^ block[(i-14)%16] ^ block[i%16];
+            temp = rotate(temp, 1);
+            block[i%16] = temp;
         }
-        
+
         if (i < 20) {
-	        f = d^(b&(c^d));
-	        k = 0x5A827999;
+            f = d^(b&(c^d));
+            k = 0x5A827999;
         } else if (i < 40) {
-        	f = b^c^d;
-        	k = 0x6ED9EBA1;
+            f = b^c^d;
+            k = 0x6ED9EBA1;
         } else if (i < 60) {
-    	    f = (b&c)^(b&d)^(c&d);
-    	    k = 0x8F1BBCDC;
+            f = (b&c)^(b&d)^(c&d);
+            k = 0x8F1BBCDC;
         } else {
-        	f = b^c^d;
-        	k = 0xCA62C1D6;
+            f = b^c^d;
+            k = 0xCA62C1D6;
         }
-        
+
         e = d;
         d = c;
         c = rotate(b, 30);
@@ -129,9 +129,9 @@ static void sha1_block(void *input, unsigned h[5])
 static unsigned bswap_32(unsigned n)
 {
 #ifdef __GNUC__
-	return __builtin_bswap32(n);
+    return __builtin_bswap32(n);
 #else
-	n = ((n<<8)&0xFF00FF00) | ((n>>8)&0x00FF00FF);
+    n = ((n<<8)&0xFF00FF00) | ((n>>8)&0x00FF00FF);
     n = (n>>16) | (n<<16);
     return n;
 #endif
@@ -140,33 +140,33 @@ static unsigned bswap_32(unsigned n)
 static void bswap_array(void *a, int words)
 {
 #ifndef __BIG_ENDIAN__
-	unsigned *word = a;
-	while (words--) {
-		*word = bswap_32(*word);
-		word++;
-	}
+    unsigned *word = a;
+    while (words--) {
+        *word = bswap_32(*word);
+        word++;
+    }
 #endif
 }
 
 // It's assumed that input is allocated a multiple of 64 bytes and we can overwrite it
 static void sha1(uint8_t *input, unsigned *buffer, int length)
 {
-	unsigned h[5] = {0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0};
+    unsigned h[5] = {0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0};
     int tail_length    = 64 - (length % 64);
     int round_length   = length + tail_length;
     uint8_t *input_end = input  + length;
-	
+
     bzero(input_end,tail_length);
-        
+
     *input_end = 1 << 7;
-	((unsigned*)input)[(round_length - 4)/4] = bswap_32(length*8);
-	
+    ((unsigned*)input)[(round_length - 4)/4] = bswap_32(length*8);
+
     for (int i = 0; i < round_length; i += 64) {
-    	bswap_array(&input[i],16);
-    	sha1_block (&input[i],h);
-    	bswap_array(&input[i],16);
+        bswap_array(&input[i],16);
+        sha1_block (&input[i],h);
+        bswap_array(&input[i],16);
     }
-    
+
     for (int i = 0; i < 5; i++)
-    	buffer[i] = bswap_32(h[i]);
+        buffer[i] = bswap_32(h[i]);
 }
