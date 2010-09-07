@@ -24,13 +24,16 @@
  * This file is included from tripper.c.
  *
  * Notes:
- *  Anyone who writes SHA1 with a fully unrolled loop (spotted in OpenSSL, darcs, etc.)
- *  is in a state of sin.
+ *  Anyone who writes SHA1 with a fully unrolled loop (spotted in OpenSSL, darcs, etc.) is in a state of sin.
  *  gcc compiles rc4() badly on x86 and seems to generate unnecessary sign extensions.
- *  The loop in sha1_block() should be partially unrolled to avoid constantly testing
- *  the range of 'i'.
- *  The placement of setting 'temp' in sha1 is different from the reference and may
- *  or may not be better.
+ *  The loop in sha1_block() should be partially unrolled to avoid constantly testing the range of 'i'.
+ *  The placement of setting 'temp' in sha1 is different from the reference and may or may not be better.
+ */
+
+/* 
+ * Todo:
+ * - see FIXME in sha1
+ * - check this code for OpenCL suitability
  */
 
 static void base64(const uint8_t *hash, char *buffer, int length)
@@ -92,9 +95,13 @@ static void sha1_block(void *input, unsigned h[5])
     for (i = 0; i < 80; i++) {
         unsigned temp;
 
+        // FIXME this can be lifted out of loop I think (would cause more memory reads but from L1)
         if (i < 16) {
             temp = block[i];
         } else {
+            // FIXME the X in i-X can be increased with a different algorithm
+            // which might allow SIMD
+            // http://software.intel.com/en-us/articles/improving-the-performance-of-the-secure-hash-algorithm-1/
             temp = block[(i-3)%16] ^ block[(i-8)%16] ^ block[(i-14)%16] ^ block[i%16];
             temp = rotate(temp, 1);
             block[i%16] = temp;
@@ -139,7 +146,15 @@ static unsigned bswap_32(unsigned n)
 #endif
 }
 
-static void bswap_array(void *a, int words)
+static unsigned le_bswap32(unsigned n)
+{
+#ifndef __BIG_ENDIAN__
+    n = bswap_32(n);
+#endif
+    return n;
+}
+
+static void le_bswap_array(void *a, int words)
 {
 #ifndef __BIG_ENDIAN__
     unsigned *word = a;
@@ -164,9 +179,9 @@ static void sha1(uint8_t *input, unsigned *buffer, int length)
     ((unsigned*)input)[(round_length - 4)/4] = bswap_32(length*8);
 
     for (int i = 0; i < round_length; i += 64) {
-        bswap_array(&input[i],16);
+        le_bswap_array(&input[i],16);
         sha1_block (&input[i],h);
-        bswap_array(&input[i],16);
+        le_bswap_array(&input[i],16);
     }
 
     for (int i = 0; i < 5; i++)
