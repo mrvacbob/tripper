@@ -55,10 +55,10 @@ static void base64(const uint8_t *hash, char *buffer, int length)
 static void rc4(const uint8_t *input, uint8_t output[6], int length)
 {
     uint8_t S[256];
-    uint8_t j, k;
-    int i, i2;
+    uint8_t j=0, k=0;
+    int i=0, i2=0;
 
-    for (i = 0; i < 256; i++)
+    for (; i < 256; i++)
         S[i] = i;
 
     for (i = 0; i < 256; i++) {
