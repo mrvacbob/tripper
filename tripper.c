@@ -28,9 +28,19 @@
  * Compiler required:
  *  GCC 4.3 or above (Apple 4.2 or above) preferred.
  *  Otherwise C99 is required and __BIG_ENDIAN__ or __LITTLE_ENDIAN__ must be defined.
- *
+ */
+
+/*
  * Todo:
- *  check higher-ascii/SJIS tripcode inputs
+ *  - iterate over SJIS strings instead of ASCII
+ *  - for DES, iterate in an order that requires fewer des_setkey() calls
+ *  - attempt to remove all variable-length arrays
+ *    (they inhibit various gcc optimizations compared to malloc)
+ *  - in strcontainsstr, convert both input strings to lowercase instead of using ceq()
+ *    (this should be faster)
+ *  - rewrite crypt.c to be reentrant
+ *  - this file needs another style cleanup
+ *  - multiprocessing
  */
 
 #define crypt __crypt
