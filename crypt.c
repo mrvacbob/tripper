@@ -155,9 +155,10 @@ static const u_char	pbox[32] = {
 	 2,  8, 24, 14, 32, 27,  3,  9, 19, 13, 30,  6, 22, 11,  4, 25
 };
 
-static u_int32_t bits32(int i) {return 1 << (31 - i);}
-static u_int32_t bits28(int i) {return 1 << (31 - (i+4));}
-static u_int32_t bits24(int i) {return 1 << (31 - (i+8));}
+static u_int32_t bits32x(int i, int o) {return 1 << (31 - (i+o));}
+static u_int32_t bits32(int i) {return bits32x(i,0);}
+static u_int32_t bits28(int i) {return bits32x(i,4);}
+static u_int32_t bits24(int i) {return bits32x(i,8);}
 static u_char bits8(int i) {return 1 << (7 - i);}
 
 static u_int32_t	saltbits;
@@ -352,8 +353,8 @@ des_setkey(const char *key)
 	u_int32_t	k0, k1, rawkey0, rawkey1;
 	int		shifts, round;
 
-	rawkey0 = ntohl(*(const u_int32_t *) key);
-	rawkey1 = ntohl(*(const u_int32_t *) (key + 4));
+	rawkey0 = le_bswap32(*(const u_int32_t *) key);
+	rawkey1 = le_bswap32(*(const u_int32_t *) (key + 4));
 
 	if ((rawkey0 | rawkey1)
 	    && rawkey0 == old_rawkey0
