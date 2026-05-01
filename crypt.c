@@ -56,15 +56,17 @@
  *	alignment).
  */
 
-#include <sys/cdefs.h>
-
 #include <sys/types.h>
 #include <sys/param.h>
 #include <arpa/inet.h>
-#include <pwd.h>
 #include <string.h>
 
-#define INLINE inline
+/* We can't always assume gcc */
+#if	defined(__GNUC__) && !defined(lint)
+#define INLINE __inline__
+#else
+#define INLINE
+#endif
 
 static const u_char	IP[64] = {
 	58, 50, 42, 34, 26, 18, 10,  2, 60, 52, 44, 36, 28, 20, 12,  4,
@@ -73,7 +75,7 @@ static const u_char	IP[64] = {
 	61, 53, 45, 37, 29, 21, 13,  5, 63, 55, 47, 39, 31, 23, 15,  7
 };
 
-static u_char	inv_key_perm[64];
+static __thread u_char	inv_key_perm[64];
 static const u_char	key_perm[56] = {
 	57, 49, 41, 33, 25, 17,  9,  1, 58, 50, 42, 34, 26, 18,
 	10,  2, 59, 51, 43, 35, 27, 19, 11,  3, 60, 52, 44, 36,
@@ -85,7 +87,7 @@ static const u_char	key_shifts[16] = {
 	1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1
 };
 
-static u_char	inv_comp_perm[56];
+static __thread u_char	inv_comp_perm[56];
 static const u_char	comp_perm[48] = {
 	14, 17, 11, 24,  1,  5,  3, 28, 15,  6, 21, 10,
 	23, 19, 12,  4, 26,  8, 16,  7, 27, 20, 13,  2,
@@ -97,7 +99,7 @@ static const u_char	comp_perm[48] = {
  *	No E box is used, as it's replaced by some ANDs, shifts, and ORs.
  */
 
-static u_char	u_sbox[8][64];
+static __thread u_char	u_sbox[8][64];
 static const u_char	sbox[8][64] = {
 	{
 		14,  4, 13,  1,  2, 15, 11,  8,  3, 10,  6, 12,  5,  9,  0,  7,
@@ -149,31 +151,40 @@ static const u_char	sbox[8][64] = {
 	}
 };
 
-static u_char	un_pbox[32];
+static __thread u_char	un_pbox[32];
 static const u_char	pbox[32] = {
 	16,  7, 20, 21, 29, 12, 28, 17,  1, 15, 23, 26,  5, 18, 31, 10,
 	 2,  8, 24, 14, 32, 27,  3,  9, 19, 13, 30,  6, 22, 11,  4, 25
 };
 
-static u_int32_t bits32x(int i, int o) {return 1 << (31 - (i+o));}
-static u_int32_t bits32(int i) {return bits32x(i,0);}
-static u_int32_t bits28(int i) {return bits32x(i,4);}
-static u_int32_t bits24(int i) {return bits32x(i,8);}
-static u_char bits8(int i) {return 1 << (7 - i);}
+static const u_int32_t	bits32[32] =
+{
+	0x80000000, 0x40000000, 0x20000000, 0x10000000,
+	0x08000000, 0x04000000, 0x02000000, 0x01000000,
+	0x00800000, 0x00400000, 0x00200000, 0x00100000,
+	0x00080000, 0x00040000, 0x00020000, 0x00010000,
+	0x00008000, 0x00004000, 0x00002000, 0x00001000,
+	0x00000800, 0x00000400, 0x00000200, 0x00000100,
+	0x00000080, 0x00000040, 0x00000020, 0x00000010,
+	0x00000008, 0x00000004, 0x00000002, 0x00000001
+};
+static const u_char	bits8[8] = { 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01 };
 
-static u_int32_t	saltbits;
-static u_int32_t	old_salt;
-static u_char		init_perm[64], final_perm[64];
-static u_int32_t	en_keysl[16], en_keysr[16];
-static u_int32_t	de_keysl[16], de_keysr[16];
-static int		des_initialised = 0;
-static u_char		m_sbox[4][4096];
-static u_int32_t	psbox[4][256];
-static u_int32_t	ip_maskl[8][256], ip_maskr[8][256];
-static u_int32_t	fp_maskl[8][256], fp_maskr[8][256];
-static u_int32_t	key_perm_maskl[8][128], key_perm_maskr[8][128];
-static u_int32_t	comp_maskl[8][128], comp_maskr[8][128];
-static u_int32_t	old_rawkey0, old_rawkey1;
+static __thread const u_int32_t	*bits28, *bits24;
+
+static __thread u_int32_t	saltbits;
+static __thread u_int32_t	old_salt;
+static __thread u_char		init_perm[64], final_perm[64];
+static __thread u_int32_t	en_keysl[16], en_keysr[16];
+static __thread u_int32_t	de_keysl[16], de_keysr[16];
+static __thread int		des_initialised = 0;
+static __thread u_char		m_sbox[4][4096];
+static __thread u_int32_t	psbox[4][256];
+static __thread u_int32_t	ip_maskl[8][256], ip_maskr[8][256];
+static __thread u_int32_t	fp_maskl[8][256], fp_maskr[8][256];
+static __thread u_int32_t	key_perm_maskl[8][128], key_perm_maskr[8][128];
+static __thread u_int32_t	comp_maskl[8][128], comp_maskr[8][128];
+static __thread u_int32_t	old_rawkey0, old_rawkey1;
 
 static const u_char	ascii64[] =
 	 "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -199,7 +210,7 @@ ascii_to_bin(char ch)
 }
 
 static void
-init_des(void)
+des_init(void)
 {
 	int	i, j, b, k, inbit, obit;
 	u_int32_t	*p, *il, *ir, *fl, *fr;
@@ -207,6 +218,7 @@ init_des(void)
 	old_rawkey0 = old_rawkey1 = 0L;
 	saltbits = 0L;
 	old_salt = 0L;
+	bits24 = (bits28 = bits32 + 4) + 4;
 
 	/*
 	 * Invert the S-boxes, reordering the input bits.
@@ -265,15 +277,15 @@ init_des(void)
 			*(fr = &fp_maskr[k][i]) = 0L;
 			for (j = 0; j < 8; j++) {
 				inbit = 8 * k + j;
-				if (i & bits8(j)) {
+				if (i & bits8[j]) {
 					if ((obit = init_perm[inbit]) < 32)
-						*il |= bits32(obit);
+						*il |= bits32[obit];
 					else
-						*ir |= bits32(obit-32);
+						*ir |= bits32[obit-32];
 					if ((obit = final_perm[inbit]) < 32)
-						*fl |= bits32(obit);
+						*fl |= bits32[obit];
 					else
-						*fr |= bits32(obit - 32);
+						*fr |= bits32[obit - 32];
 				}
 			}
 		}
@@ -282,26 +294,26 @@ init_des(void)
 			*(ir = &key_perm_maskr[k][i]) = 0L;
 			for (j = 0; j < 7; j++) {
 				inbit = 8 * k + j;
-				if (i & bits8(j + 1)) {
+				if (i & bits8[j + 1]) {
 					if ((obit = inv_key_perm[inbit]) == 255)
 						continue;
 					if (obit < 28)
-						*il |= bits28(obit);
+						*il |= bits28[obit];
 					else
-						*ir |= bits28(obit - 28);
+						*ir |= bits28[obit - 28];
 				}
 			}
 			*(il = &comp_maskl[k][i]) = 0L;
 			*(ir = &comp_maskr[k][i]) = 0L;
 			for (j = 0; j < 7; j++) {
 				inbit = 7 * k + j;
-				if (i & bits8(j + 1)) {
+				if (i & bits8[j + 1]) {
 					if ((obit=inv_comp_perm[inbit]) == 255)
 						continue;
 					if (obit < 24)
-						*il |= bits24(obit);
+						*il |= bits24[obit];
 					else
-						*ir |= bits24(obit - 24);
+						*ir |= bits24[obit - 24];
 				}
 			}
 		}
@@ -318,8 +330,8 @@ init_des(void)
 		for (i = 0; i < 256; i++) {
 			*(p = &psbox[b][i]) = 0L;
 			for (j = 0; j < 8; j++) {
-				if (i & bits8(j))
-					*p |= bits32(un_pbox[8 * b + j]);
+				if (i & bits8[j])
+					*p |= bits32[un_pbox[8 * b + j]];
 			}
 		}
 
@@ -353,8 +365,8 @@ des_setkey(const char *key)
 	u_int32_t	k0, k1, rawkey0, rawkey1;
 	int		shifts, round;
 
-	rawkey0 = le_bswap32(*(const u_int32_t *) key);
-	rawkey1 = le_bswap32(*(const u_int32_t *) (key + 4));
+	rawkey0 = ntohl(*(const u_int32_t *) key);
+	rawkey1 = ntohl(*(const u_int32_t *) (key + 4));
 
 	if ((rawkey0 | rawkey1)
 	    && rawkey0 == old_rawkey0
@@ -431,7 +443,7 @@ do_des(	u_int32_t l_in, u_int32_t r_in, u_int32_t *l_out, u_int32_t *r_out, int 
 	 *	l_in, r_in, l_out, and r_out are in pseudo-"big-endian" format.
 	 */
 	u_int32_t	l, r, *kl, *kr, *kl1, *kr1;
-	u_int32_t	f=0, r48l, r48r;
+	u_int32_t	f, r48l, r48r;
 	int		round;
 
 		/*
@@ -534,7 +546,7 @@ crypt(const char *key, const char *setting)
 {
 	u_int32_t	count, salt, l, r0, r1, keybuf[2];
 	u_char		*p, *q;
-	static char	output[21];
+	static __thread char	output[21];
 
 	/*
 	 * Copy the key, shifting each character up by one bit
@@ -543,7 +555,7 @@ crypt(const char *key, const char *setting)
 	q = (u_char *)keybuf;
 	while (q - (u_char *)keybuf - 8) {
 		*q++ = *key << 1;
-		if (*(q - 1))
+		if (*key != '\0')
 			key++;
 	}
 	if (des_setkey((char *)keybuf))
@@ -595,7 +607,7 @@ crypt(const char *key, const char *setting)
 	*p++ = ascii64[(l >> 12) & 0x3f];
 	*p++ = ascii64[(l >> 6) & 0x3f];
 	*p++ = ascii64[l & 0x3f];
-	*p = 0;
+	*p = '\0';
 
 	return(output);
 }

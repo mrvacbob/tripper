@@ -327,7 +327,7 @@ int main(int argc, const char *argv[])
     work[0] = 't';
 #else
     uint8_t work[HTMLED_TRIPCODE_LEN];
-    init_des();
+    des_init();
 #endif
 
     for (i = 1; i <= MAX_TRIPCODE_LEN; i++)
