@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2010 mrvacbob <mrvacbob@users.noreply.github.com>
+ * Copyright (c) 2004-2026 mrvacbob <mrvacbob@users.noreply.github.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
