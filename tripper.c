@@ -43,6 +43,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <stdint.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -80,6 +81,8 @@
 #elif !defined(WAKABA)
 # define WORKLEN    HTMLED_TRIPCODE_LEN
 #endif
+
+static atomic_int g_interrupted = 0;
 
 #if defined(SHIICHAN) || defined(WAKABA)
 # include "hash.c"
@@ -240,7 +243,13 @@ test_every_trip_of_length(int length, const char *search, int searchlen,
 {
 #pragma omp parallel for schedule(static)
     for (int first = 0; first < 94; first++) {
-#ifdef WAKABA
+        if (atomic_load_explicit(&g_interrupted, memory_order_relaxed)) continue;
+#if !defined(SHIICHAN) && !defined(WAKABA)
+        if (!des_initialised) des_init();
+#endif
+#ifdef SHIICHAN
+        _Alignas(uint32_t) uint8_t workspace[WORKLEN];
+#elif defined(WAKABA)
         uint8_t workspace[1+HTMLED_TRIPCODE_LEN+saltlen];
         workspace[0] = 't';
 #else
@@ -250,6 +259,7 @@ test_every_trip_of_length(int length, const char *search, int searchlen,
         count[0] = first;
 
         do {
+            if (unlikely(atomic_load_explicit(&g_interrupted, memory_order_relaxed))) break;
             char pre_html[MAX_TRIPCODE_LEN+1];
             int html_len;
 
@@ -289,8 +299,10 @@ test_every_trip_of_length(int length, const char *search, int searchlen,
 
 static void terminatehandle(int unused)
 {
-    printf("Exiting...\n");
-    exit(0);
+    static const char msg[] = "\nExiting...\n";
+    atomic_store_explicit(&g_interrupted, 1, memory_order_relaxed);
+    write(STDOUT_FILENO, msg, sizeof(msg) - 1);
+    (void)unused;
 }
 
 int main(int argc, const char *argv[])
@@ -329,11 +341,11 @@ int main(int argc, const char *argv[])
 #elif WAKABA
     saltlen = strlen(argv[2]);
     salt = (const uint8_t *)argv[2];
-#else
-    des_init();
 #endif
 
-    for (i = 1; i <= MAX_TRIPCODE_LEN; i++)
+    for (i = 1; i <= MAX_TRIPCODE_LEN; i++) {
         test_every_trip_of_length(i, argv[1], searchlen, salt, saltlen);
+        if (atomic_load_explicit(&g_interrupted, memory_order_relaxed)) break;
+    }
     return 0;
 }

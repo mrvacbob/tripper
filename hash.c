@@ -164,8 +164,9 @@ static void le_bswap_array(void *a, int words)
 static void sha1(uint8_t *input, uint32_t *buffer, int length)
 {
     uint32_t h[5] = {0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0};
-    int tail_length    = 64 - (length % 64);
-    int round_length   = length + tail_length;
+    int tail_length  = 64 - (length % 64);
+    if (tail_length < 9) tail_length += 64; /* need room for 0x80 + 8-byte length */
+    int round_length = length + tail_length;
     uint8_t *input_end = input  + length;
 
     bzero(input_end,tail_length);
@@ -175,8 +176,7 @@ static void sha1(uint8_t *input, uint32_t *buffer, int length)
 
     for (int i = 0; i < round_length; i += 64) {
         le_bswap_array(&input[i],16);
-        sha1_block (&input[i],h);
-        le_bswap_array(&input[i],16);
+        sha1_block(&input[i],h);
     }
 
     for (int i = 0; i < 5; i++)

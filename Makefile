@@ -1,5 +1,5 @@
 CC     = cc
-CFLAGS = -O2 -g -std=gnu99 -Wall
+CFLAGS = -O2 -g -std=gnu11 -Wall
 SRCS   = tripper.c hash.c crypt.c
 
 ifdef OPENMP
