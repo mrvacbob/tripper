@@ -42,7 +42,7 @@ static void base64(const uint8_t *hash, char *buffer, int length)
 
     for (int i = 0; i < (length/3); i++) {
         int i3 = i*3, i4 = i*4;
-        unsigned bits = hash[i3]<<16 | hash[i3+1]<<8 | hash[i3+2];
+        uint32_t bits = (uint32_t)hash[i3]<<16 | (uint32_t)hash[i3+1]<<8 | hash[i3+2];
 
         buffer[i4+0] = a[(bits>>18) % 64];
         buffer[i4+1] = a[(bits>>12) % 64];
@@ -83,10 +83,10 @@ static void rc4(const uint8_t *input, uint8_t output[6], int length)
 
 #if defined(SHIICHAN)
 static uint32_t rotate(uint32_t i, int n) { return i << n | i >> (32 - n); }
-static void sha1_block(void *input, unsigned h[5])
+static void sha1_block(void *input, uint32_t h[5])
 {
-    unsigned a,b,c,d,e,f,k;
-    unsigned *block = input;
+    uint32_t a,b,c,d,e,f,k;
+    uint32_t *block = input;
     int i;
 
     a = h[0];
@@ -96,7 +96,7 @@ static void sha1_block(void *input, unsigned h[5])
     e = h[4];
 
     for (i = 0; i < 80; i++) {
-        unsigned temp;
+        uint32_t temp;
 
         // FIXME this can be lifted out of loop I think (would cause more memory reads but from L1)
         if (i < 16) {
@@ -138,7 +138,7 @@ static void sha1_block(void *input, unsigned h[5])
     h[4] += e;
 }
 
-static unsigned bswap_32(unsigned n)
+static uint32_t bswap_32(uint32_t n)
 {
 #ifdef __GNUC__
     return __builtin_bswap32(n);
@@ -152,7 +152,7 @@ static unsigned bswap_32(unsigned n)
 static void le_bswap_array(void *a, int words)
 {
 #ifndef __BIG_ENDIAN__
-    unsigned *word = a;
+    uint32_t *word = a;
     while (words--) {
         *word = bswap_32(*word);
         word++;
@@ -161,9 +161,9 @@ static void le_bswap_array(void *a, int words)
 }
 
 // It's assumed that input is allocated a multiple of 64 bytes and we can overwrite it
-static void sha1(uint8_t *input, unsigned *buffer, int length)
+static void sha1(uint8_t *input, uint32_t *buffer, int length)
 {
-    unsigned h[5] = {0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0};
+    uint32_t h[5] = {0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0};
     int tail_length    = 64 - (length % 64);
     int round_length   = length + tail_length;
     uint8_t *input_end = input  + length;
@@ -171,7 +171,7 @@ static void sha1(uint8_t *input, unsigned *buffer, int length)
     bzero(input_end,tail_length);
 
     *input_end = 1 << 7;
-    ((unsigned*)input)[(round_length - 4)/4] = bswap_32(length*8);
+    ((uint32_t*)input)[(round_length - 4)/4] = bswap_32((unsigned)length * 8);
 
     for (int i = 0; i < round_length; i += 64) {
         le_bswap_array(&input[i],16);

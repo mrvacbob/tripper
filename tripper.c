@@ -99,22 +99,21 @@ static int strcontainsstr(const char *big, const char *small, int len, int slen)
 {
     int i = 0, j;
 redo_from_start:
-    for (; i < (len - slen); i++)
+    for (; i <= (len - slen); i++)
         if (ceq(big[i], small[0]))
             goto more_tries;
     return 0;
 more_tries:
-    j = 1;
-    for (i++; i < len; i++,j++) {
-        if (j >= slen) return 1;
-        if (!ceq(big[i],small[j]))
+    for (j = 1; j < slen; j++) {
+        i++;
+        if (i >= len || !ceq(big[i], small[j]))
             goto redo_from_start;
     }
-    return 0;
+    return 1;
 }
 
 #if !defined(SHIICHAN) && !defined(WAKABA)
-static char clean_salt(char i)
+static uint8_t clean_salt(uint8_t i)
 {
     if ((i < '.') || (i > 'z'))
         i = '.';
@@ -127,7 +126,7 @@ static char clean_salt(char i)
 
 static char *tripcode_2ch(char *input, int length)
 {
-    char salt[2];
+    uint8_t salt[2];
 
     if (length >= 2) {
         salt[0] = clean_salt(input[1]);
@@ -137,7 +136,7 @@ static char *tripcode_2ch(char *input, int length)
         salt[1] = '.';
     }
 
-    return crypt(input, salt) + 3;
+    return crypt(input, (const char *)salt) + 3;
 }
 #endif
 
@@ -153,7 +152,7 @@ static void tripcode_wakaba(uint8_t *input, char *buffer, int length)
 #if defined(SHIICHAN)
 static void tripcode_shiichan(uint8_t *input, char *buffer, int length)
 {
-    unsigned int hash[5];
+    uint32_t hash[5];
     sha1(input,hash,length);
     base64((const uint8_t*)hash,buffer,9);
 }
@@ -306,12 +305,15 @@ int main(int argc, const char *argv[])
         perror("salt read failed");
         exit(1);
     }
-    read(f, saltbuf, 448);
+    if (read(f, saltbuf, 448) != 448) {
+        perror("salt read failed");
+        exit(1);
+    }
     close(f);
 #elif WAKABA
-    uint8_t work[1+HTMLED_TRIPCODE_LEN+saltlen];
     saltlen = strlen(argv[2]);
     salt = (const uint8_t *)argv[2];
+    uint8_t work[1+HTMLED_TRIPCODE_LEN+saltlen];
     work[0] = 't';
 #else
     uint8_t work[HTMLED_TRIPCODE_LEN];

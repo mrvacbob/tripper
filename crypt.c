@@ -554,7 +554,7 @@ crypt(const char *key, const char *setting)
 	 */
 	q = (u_char *)keybuf;
 	while (q - (u_char *)keybuf - 8) {
-		*q++ = *key << 1;
+		*q++ = (unsigned char)*key << 1;
 		if (*key != '\0')
 			key++;
 	}
