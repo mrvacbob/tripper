@@ -74,8 +74,12 @@
 
 #define HTMLED_TRIPCODE_LEN (8*MAX_TRIPCODE_LEN)
 
-#include "hash.c"
-#include "crypt.c"
+#if defined(SHIICHAN) || defined(WAKABA)
+# include "hash.c"
+#endif
+#if !defined(SHIICHAN) && !defined(WAKABA)
+# include "crypt.c"
+#endif
 
 #ifdef CASE_SENSITIVE
 # define ceq(a,b) (a)==(b)
@@ -109,6 +113,7 @@ more_tries:
     return 0;
 }
 
+#if !defined(SHIICHAN) && !defined(WAKABA)
 static char clean_salt(char i)
 {
     if ((i < '.') || (i > 'z'))
@@ -134,24 +139,29 @@ static char *tripcode_2ch(char *input, int length)
 
     return crypt(input, salt) + 3;
 }
+#endif
 
+#if defined(WAKABA)
 static void tripcode_wakaba(uint8_t *input, char *buffer, int length)
 {
     unsigned char hash[6];
     rc4(input,hash,length);
     base64(hash,buffer,sizeof(hash));
 }
+#endif
 
+#if defined(SHIICHAN)
 static void tripcode_shiichan(uint8_t *input, char *buffer, int length)
 {
     unsigned int hash[5];
     sha1(input,hash,length);
     base64((const uint8_t*)hash,buffer,9);
 }
+#endif
 
 static const uint8_t tripcode_inputs[94] = " \"$%&'()*+,-.!/0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
 
-static int htmlspecialchars(const char *trip, char *html, int length)
+static int htmlspecialchars(const char *trip, uint8_t *html, int length)
 {
     int i, j = 0;
     for (i = 0; i < length; i++) {
@@ -245,7 +255,7 @@ test_every_trip_of_length(int length, const char *search, int searchlen,
         char *buffer;
         html_len = htmlspecialchars(pre_html, workspace, length);
         workspace[html_len] = 0;
-        buffer = tripcode_2ch(workspace, html_len);
+        buffer = tripcode_2ch((char *)workspace, html_len);
 #endif
         if (unlikely(strcontainsstr(buffer, search, OUTPUT_LEN, searchlen))) {
             buffer[OUTPUT_LEN] = pre_html[length] = 0;
@@ -301,7 +311,7 @@ int main(int argc, const char *argv[])
 #elif WAKABA
     uint8_t work[1+HTMLED_TRIPCODE_LEN+saltlen];
     saltlen = strlen(argv[2]);
-    salt = argv[2];
+    salt = (const uint8_t *)argv[2];
     work[0] = 't';
 #else
     uint8_t work[HTMLED_TRIPCODE_LEN];

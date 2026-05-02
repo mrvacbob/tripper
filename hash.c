@@ -51,6 +51,7 @@ static void base64(const uint8_t *hash, char *buffer, int length)
     }
 }
 
+#if defined(WAKABA)
 #define swap(type, a, b) {type t = (a); (a) = (b); (b) = t;}
 static void rc4(const uint8_t *input, uint8_t output[6], int length)
 {
@@ -78,7 +79,9 @@ static void rc4(const uint8_t *input, uint8_t output[6], int length)
         swap(uint8_t, S[i], S[j]);
     }
 }
+#endif /* WAKABA */
 
+#if defined(SHIICHAN)
 static uint32_t rotate(uint32_t i, int n) { return i << n | i >> (32 - n); }
 static void sha1_block(void *input, unsigned h[5])
 {
@@ -146,14 +149,6 @@ static unsigned bswap_32(unsigned n)
 #endif
 }
 
-static unsigned le_bswap32(unsigned n)
-{
-#ifndef __BIG_ENDIAN__
-    n = bswap_32(n);
-#endif
-    return n;
-}
-
 static void le_bswap_array(void *a, int words)
 {
 #ifndef __BIG_ENDIAN__
@@ -187,3 +182,4 @@ static void sha1(uint8_t *input, unsigned *buffer, int length)
     for (int i = 0; i < 5; i++)
         buffer[i] = bswap_32(h[i]);
 }
+#endif /* SHIICHAN */
