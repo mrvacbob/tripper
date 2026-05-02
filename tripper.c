@@ -74,6 +74,13 @@
 
 #define HTMLED_TRIPCODE_LEN (8*MAX_TRIPCODE_LEN)
 
+#ifdef SHIICHAN
+# define shaworklen (HTMLED_TRIPCODE_LEN+448)
+# define WORKLEN    (shaworklen + (64 - (shaworklen%64)))
+#elif !defined(WAKABA)
+# define WORKLEN    HTMLED_TRIPCODE_LEN
+#endif
+
 #if defined(SHIICHAN) || defined(WAKABA)
 # include "hash.c"
 #endif
@@ -227,46 +234,57 @@ static int next_trip(uint8_t *count, int len) {
     return 0; //ran out of trips
 }
 
-static always_inline void
+static void
 test_every_trip_of_length(int length, const char *search, int searchlen,
-                          const uint8_t *salt, int saltlen, uint8_t *workspace)
+                          const uint8_t *salt, int saltlen)
 {
-    uint8_t count[MAX_TRIPCODE_LEN] = {0};
+#pragma omp parallel for schedule(static)
+    for (int first = 0; first < 94; first++) {
+#ifdef WAKABA
+        uint8_t workspace[1+HTMLED_TRIPCODE_LEN+saltlen];
+        workspace[0] = 't';
+#else
+        uint8_t workspace[WORKLEN];
+#endif
+        uint8_t count[MAX_TRIPCODE_LEN] = {0};
+        count[0] = first;
 
-    do {
-        char pre_html[MAX_TRIPCODE_LEN+1];
-         int html_len;
+        do {
+            char pre_html[MAX_TRIPCODE_LEN+1];
+            int html_len;
 
-        for (int i = 0; i < length; i++)
-            pre_html[i] = tripcode_inputs[count[i]];
+            for (int i = 0; i < length; i++)
+                pre_html[i] = tripcode_inputs[count[i]];
 
 #ifdef SHIICHAN
-        char buffer[12];
-        html_len = htmlspecialchars(pre_html, workspace, length);
-        memcpy(workspace+html_len, salt, saltlen);
-        tripcode_shiichan(workspace, buffer, html_len+saltlen);
+            char buffer[12];
+            html_len = htmlspecialchars(pre_html, workspace, length);
+            memcpy(workspace+html_len, salt, saltlen);
+            tripcode_shiichan(workspace, buffer, html_len+saltlen);
 #elif defined(WAKABA)
-        char buffer[10];
-        html_len = htmlspecialchars(pre_html, workspace+1, length);
-        memcpy(workspace+html_len+1, salt, saltlen);
-        tripcode_wakaba(workspace, buffer, 1+html_len+saltlen);
+            char buffer[10];
+            html_len = htmlspecialchars(pre_html, workspace+1, length);
+            memcpy(workspace+html_len+1, salt, saltlen);
+            tripcode_wakaba(workspace, buffer, 1+html_len+saltlen);
 #else
-        char *buffer;
-        html_len = htmlspecialchars(pre_html, workspace, length);
-        workspace[html_len] = 0;
-        buffer = tripcode_2ch((char *)workspace, html_len);
+            char *buffer;
+            html_len = htmlspecialchars(pre_html, workspace, length);
+            workspace[html_len] = 0;
+            buffer = tripcode_2ch((char *)workspace, html_len);
 #endif
-        if (unlikely(strcontainsstr(buffer, search, OUTPUT_LEN, searchlen))) {
-            buffer[OUTPUT_LEN] = pre_html[length] = 0;
-            printf(
+            if (unlikely(strcontainsstr(buffer, search, OUTPUT_LEN, searchlen))) {
+                buffer[OUTPUT_LEN] = pre_html[length] = 0;
+#pragma omp critical
+                printf(
 #if defined(SHIICHAN) || defined(WAKABA)
-                   "##%s !%s\n"
+                       "##%s !%s\n"
 #else
-                   "#%s !%s\n"
+                       "#%s !%s\n"
 #endif
-                   , pre_html, buffer);
-        }
-    } while (next_trip(count, length));
+                       , pre_html, buffer);
+            }
+        } while (next_trip(count + 1, length - 1));
+    }
 }
 
 static void terminatehandle(int unused)
@@ -294,9 +312,7 @@ int main(int argc, const char *argv[])
     searchlen = strlen(argv[1]);
 
 #ifdef SHIICHAN
-# define shaworklen (HTMLED_TRIPCODE_LEN+448)
     uint8_t saltbuf[448];
-    uint8_t work[shaworklen + (64 - (shaworklen%64))];
     saltlen=448;
     salt = saltbuf;
 
@@ -313,14 +329,11 @@ int main(int argc, const char *argv[])
 #elif WAKABA
     saltlen = strlen(argv[2]);
     salt = (const uint8_t *)argv[2];
-    uint8_t work[1+HTMLED_TRIPCODE_LEN+saltlen];
-    work[0] = 't';
 #else
-    uint8_t work[HTMLED_TRIPCODE_LEN];
     des_init();
 #endif
 
     for (i = 1; i <= MAX_TRIPCODE_LEN; i++)
-        test_every_trip_of_length(i, argv[1], searchlen, salt, saltlen, work);
+        test_every_trip_of_length(i, argv[1], searchlen, salt, saltlen);
     return 0;
 }
