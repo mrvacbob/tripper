@@ -30,11 +30,6 @@
  *  The placement of setting 'temp' in sha1 is different from the reference and may or may not be better.
  */
 
-/* 
- * Todo:
- * - see FIXME in sha1
- * - check this code for OpenCL suitability
- */
 
 static void base64(const uint8_t *hash, char *buffer, int length)
 {
@@ -98,13 +93,9 @@ static void sha1_block(void *input, uint32_t h[5])
     for (i = 0; i < 80; i++) {
         uint32_t temp;
 
-        // FIXME this can be lifted out of loop I think (would cause more memory reads but from L1)
         if (i < 16) {
             temp = block[i];
         } else {
-            // FIXME the X in i-X can be increased with a different algorithm
-            // which might allow SIMD
-            // http://software.intel.com/en-us/articles/improving-the-performance-of-the-secure-hash-algorithm-1/
             temp = block[(i-3)%16] ^ block[(i-8)%16] ^ block[(i-14)%16] ^ block[i%16];
             temp = rotate(temp, 1);
             block[i%16] = temp;

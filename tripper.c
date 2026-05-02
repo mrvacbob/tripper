@@ -36,7 +36,6 @@
  *    (they inhibit various gcc optimizations compared to malloc)
  *  - in strcontainsstr, convert both input strings to lowercase instead of using ceq()
  *    (this should be faster)
- *  - multiprocessing
  */
 
 #define crypt __crypt
