@@ -19,15 +19,13 @@
  * Will work with restrictions on Wakaba/Wakaba-ZERO/Kareha/Shiichan/Futallaby/Futaba/Electron/Etc.
  * Tripcode output containing <>"'!#,& may not work on some (incorrect) boards.
  *
- * To build: ./build.sh
+ * To build: make
  *
  * Output:
  *  #blah !XXXXXXXXXX
  *  Append #blah to your name when posting to get the printed tripcode.
  *
- * Compiler required:
- *  GCC 4.3 or above (Apple 4.2 or above) preferred.
- *  Otherwise C99 is required and __BIG_ENDIAN__ or __LITTLE_ENDIAN__ must be defined.
+ * Compiler required: Clang (C99 or later).
  */
 
 /*
@@ -38,8 +36,6 @@
  *    (they inhibit various gcc optimizations compared to malloc)
  *  - in strcontainsstr, convert both input strings to lowercase instead of using ceq()
  *    (this should be faster)
- *  - rewrite crypt.c to be reentrant
- *  - this file needs another style cleanup
  *  - multiprocessing
  */
 
@@ -207,24 +203,6 @@ static int htmlspecialchars(const char *trip, char *html, int length)
     }
     return j;
 }
-
-#if 0
-//iteration-independent version of next_trip
-//much slower but maybe useful for parallelizing
-static void fill_count_for_trip(uint8_t *count, int len, unsigned step) {
-    int i = len;
-    while (i-- >= 0) {
-        count[i] = step % 94;
-        step /= 94;
-    }
-}
-
-static unsigned trips_per_len(int len) {
-    unsigned mul = 1;
-    while (len--) mul *= 94;
-    return mul;
-}
-#endif
 
 static int next_trip(uint8_t *count, int len) {
     int i = len;
